@@ -1,4 +1,5 @@
 import solara
+from pathlib import Path
 import os
 from crewai import Agent, Task, Crew, LLM
 
