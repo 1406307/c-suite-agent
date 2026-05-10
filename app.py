@@ -1,5 +1,5 @@
 import streamlit as st
-from crewai import Crew, LLM
+from crewai import Agent, Task, Crew, LLM
 # ... import your agents and tasks from main.py ...
 
 st.set_page_config(page_title="Career accelerator", layout="wide")
