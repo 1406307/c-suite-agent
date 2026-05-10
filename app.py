@@ -1,6 +1,7 @@
 import solara
 from pathlib import Path
 import os
+from dotenv import load_dotenv
 from crewai import Agent, Task, Crew, LLM
 
 # 1. Setup the AI Brain (Infrastructure remains the same)
