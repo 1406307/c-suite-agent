@@ -3,11 +3,18 @@ import os
 from crewai import Agent, Task, Crew, LLM
 
 # 1. Setup the AI Brain (Infrastructure remains the same)
+env_path = Path('.') / '.venv'
+load_dotenv(dotenv_path=env_path)
+
 api_key = os.getenv("GOOGLE_API_KEY")
 
+if not api_key:
+    raise ValueError("GOOGLE_API_KEY not found. Check your .env file!")
+# Setup Gemini 1.5 Flash (Fast and Free)
 gemini_llm = LLM(
     model="gemini/gemini-3-flash-preview",
-    api_key=api_key
+    google_api_key=api_key,
+    temperature=0.7
 )
 
 # 2. Reactive State (This is where Solara shines)
