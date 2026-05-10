@@ -4,6 +4,9 @@ from crewai import Agent, Task, Crew, LLM
 from crewai.process import Process
 
 # --- 1. CLOUD INFRASTRUCTURE FIXES ---
+if 'pkg_resources' not in sys.modules:
+    sys.modules['pkg_resources'] = mock.MagicMock()
+    
 # These lines prevent ChromaDB from trying to access restricted system files
 os.environ['ANONYMIZED_TELEMETRY'] = 'False'
 os.environ['CHROMA_SERVER_NOFILE'] = 'True'
