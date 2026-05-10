@@ -1,106 +1,60 @@
-import streamlit as st
+import solara
 import os
 from crewai import Agent, Task, Crew, LLM
-from crewai.process import Process
 
-# --- 1. CLOUD INFRASTRUCTURE FIXES ---
-if 'pkg_resources' not in sys.modules:
-    sys.modules['pkg_resources'] = mock.MagicMock()
-    
-# These lines prevent ChromaDB from trying to access restricted system files
-os.environ['ANONYMIZED_TELEMETRY'] = 'False'
-os.environ['CHROMA_SERVER_NOFILE'] = 'True'
+# 1. Setup the AI Brain (Infrastructure remains the same)
+api_key = os.getenv("GOOGLE_API_KEY")
 
-# --- 2. SETUP & BRAIN ---
-st.set_page_config(page_title="Career Accelerator", layout="wide", page_icon="🚀")
-
-# Priority: Streamlit Secrets -> Environment Variables
-api_key = st.secrets.get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
-
-if not api_key:
-    st.error("🔑 Missing Google API Key. Go to Streamlit Settings > Secrets and add: GOOGLE_API_KEY = 'your_key'")
-    st.stop()
-
-# Using the 2026 stable Gemini 3 model
 gemini_llm = LLM(
     model="gemini/gemini-3-flash-preview",
-    api_key=api_key,
-    temperature=0.7
+    api_key=api_key
 )
 
-# --- 3. UI SIDEBAR & PROFILE ---
-st.title("🚀 Career Accelerator: C-Suite Path")
-st.markdown("---")
+# 2. Reactive State (This is where Solara shines)
+user_prompt = solara.reactive("")
+chat_history = solara.reactive([])
+target_degree = solara.reactive("MBA")
 
-with st.sidebar:
-    st.header("Executive Profile")
-    target_degree = st.selectbox(
-        "Target Degree", 
-        ["MS in SCM (Supply Chain)", "MBA", "MEM (Engineering Management)"]
-    )
-    st.divider()
-    st.info(f"Currently optimizing your path for a {target_degree} at top-tier US institutions.")
+@solara.component
+def Page():
+    with solara.Column(style={"padding": "20px", "max-width": "800px"}):
+        solara.Title("🚀 Career Accelerator: C-Suite Path")
+        
+        # Sidebar-style settings
+        with solara.Card("Executive Profile"):
+            solara.Select("Target Degree", value=target_degree, 
+                          values=["MS in SCM", "MBA", "MEM"])
+            solara.Info(f"Strategizing for {target_degree.value}...")
 
-# Initialize Chat History
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+        # Chat History Display
+        for msg in chat_history.value:
+            with solara.Row():
+                solara.Markdown(f"**{msg['role']}:** {msg['content']}")
 
-# Display previous conversation
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-# --- 4. THE AGENTIC LOOP ---
-if prompt := st.chat_input("Ask about universities, leadership, or communication..."):
-    # Show user message
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    with st.spinner("Consulting the C-Suite Council..."):
-        try:
-            # Define the Strategist Agent
+        # Chat Input
+        solara.InputText("Ask your C-Suite Council...", 
+                         value=user_prompt, 
+                         on_value=user_prompt.set)
+        
+        def run_agent():
+            # Create Agent
             expert = Agent(
-                role='Career & Admissions Strategist',
-                goal=f'Guide the user toward a {target_degree} at a top US university.',
-                backstory=(
-                    "You are a top-tier executive consultant. You understand "
-                    "the nuances of Ivy League admissions and the leadership "
-                    "qualities required to reach the C-suite of an MNC."
-                ),
-                llm=gemini_llm,
-                allow_delegation=False,
-                verbose=True
+                role='Executive Consultant',
+                goal=f'Optimize a {target_degree.value} path.',
+                backstory='Specialist in MNC leadership pipelines.',
+                llm=gemini_llm
             )
-
-            # Define the specific Task
-            consultation_task = Task(
-                description=(
-                    f"User Inquiry: {prompt}\n"
-                    f"Context: The user wants to pursue a {target_degree} in the USA. "
-                    "Provide a strategic, executive-level answer with actionable steps."
-                ),
-                agent=expert,
-                expected_output="A structured response with specific recommendations and a 'Leadership Tip' section."
-            )
-
-            # Define the Crew with 'Memory=False' to avoid ConfigError
-            accelerator_crew = Crew(
-                agents=[expert],
-                tasks=[consultation_task],
-                process=Process.sequential,
-                memory=False, # This is the critical fix for ConfigError
-                verbose=True
-            )
-
-            # Execute the search
-            result = accelerator_crew.kickoff()
             
-            # Clean and display result
-            response = str(result)
-            st.session_state.messages.append({"role": "assistant", "content": response})
-            with st.chat_message("assistant"):
-                st.markdown(response)
+            task = Task(description=user_prompt.value, agent=expert, expected_output="A strategic plan.")
+            crew = Crew(agents=[expert], tasks=[task], memory=False)
+            
+            # Execute and update history
+            result = str(crew.kickoff())
+            new_history = chat_history.value + [
+                {"role": "User", "content": user_prompt.value},
+                {"role": "AI", "content": result}
+            ]
+            chat_history.set(new_history)
+            user_prompt.set("") # Clear input
 
-        except Exception as e:
-            st.error(f"An error occurred: {e}")
+        solara.Button("Consult Council", on_click=run_agent, color="primary")
