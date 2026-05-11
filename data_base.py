@@ -18,7 +18,7 @@ def ingest_cv(file_path):
 
     # 3. Setup Embeddings
     embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001", 
+        model="models/text-embedding-004", 
         google_api_key=api_key
     )
 
@@ -28,7 +28,7 @@ def ingest_cv(file_path):
         embeddings, 
         persist_directory="./career_vault"
     )
-    print(f"✅ Success! Your {file_path} is now embedded in the Career Vault.")
+    print(f"Success! Your {file_path} is now embedded in the Career Vault.")
 
 if __name__ == "__main__":
     # Make sure your file name matches exactly
