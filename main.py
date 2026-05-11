@@ -1,34 +1,51 @@
 import os
 from crewai import Agent, Task, Crew, LLM
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_community.vectorstores import Chroma
 
 def run_persona_agent(user_input, persona_type, target_degree):
     api_key = os.getenv("GOOGLE_API_KEY")
-    gemini_llm = LLM(model="gemini/gemini-3-flash-preview", api_key=api_key)
-
-    # Define the persona profiles
-    if persona_type == "Career Expert":
-        role = 'Senior Admissions & Career Strategist'
-        goal = f'Optimize your path for a {target_degree} and C-suite placement.'
-        backstory = 'Former Ivy League admissions officer and MNC recruiter.'
-    else: # Chief Communication Officer
-        role = 'Executive Communication & IELTS Expert'
-        goal = 'Achieve IELTS Band 8.5+ and master executive-level English.'
-        backstory = 'Former IELTS Senior Examiner and Fortune 500 speechwriter.'
-
-    # Create the selected Agent
-    agent = Agent(
-        role=role,
-        goal=goal,
-        backstory=backstory,
-        llm=gemini_llm,
-        verbose=True
+    
+    # 1. Setup the Embedding Brain (Turns text into searchable numbers)
+    embeddings = GoogleGenerativeAIEmbeddings(
+        model="models/embedding-001",
+        google_api_key=api_key
     )
 
-    # Create the Task
+    # 2. Connect to ChromaDB
+    # It looks for a folder named 'career_vault' in your project
+    vector_db = Chroma(
+        persist_directory="./career_vault", 
+        embedding_function=embeddings
+    )
+
+    # 3. Retrieve Context (The Personalized Part)
+    # This searches your CV/Details for the 2 most relevant parts
+    search_results = vector_db.similarity_search(user_input, k=2)
+    context_from_memory = "\n".join([doc.page_content for doc in search_results])
+
+    # 4. Setup the Persona
+    gemini_llm = LLM(model="gemini/gemini-3-flash-preview", api_key=api_key)
+
+    agent = Agent(
+        role=f'Executive {persona_type}',
+        goal=f'Provide a personalized strategy for a {target_degree} candidate.',
+        backstory=(
+            "You have access to the user's private career vault (CV and history). "
+            "Use this data to ensure every piece of advice is tailored to their specific background."
+        ),
+        llm=gemini_llm
+    )
+
+    # 5. The Personalized Task
     task = Task(
-        description=f"User Request: {user_input}. Context: User is aiming for a {target_degree}.",
+        description=(
+            f"User Question: {user_input}\n\n"
+            f"Relevant Details from User's CV/History:\n{context_from_memory}\n\n"
+            f"Context: Aiming for {target_degree}."
+        ),
         agent=agent,
-        expected_output="A concise, high-impact professional response."
+        expected_output="A hyper-personalized response based on the user's actual background."
     )
 
     crew = Crew(agents=[agent], tasks=[task], memory=False)
