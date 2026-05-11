@@ -1,69 +1,43 @@
 import solara
-from pathlib import Path
-import os
-from dotenv import load_dotenv
-from crewai import Agent, Task, Crew, LLM
+from main import run_persona_agent
 
-# 1. Setup the AI Brain (Infrastructure remains the same)
-env_path = Path('.') / '.venv'
-load_dotenv(dotenv_path=env_path)
-
-api_key = os.getenv("GOOGLE_API_KEY")
-
-if not api_key:
-    raise ValueError("GOOGLE_API_KEY not found. Check your .env file!")
-# Setup Gemini 1.5 Flash (Fast and Free)
-gemini_llm = LLM(
-    model="gemini/gemini-3-flash-preview",
-    google_api_key=api_key,
-    temperature=0.7
-)
-
-# 2. Reactive State (This is where Solara shines)
+# Reactive State
+selected_persona = solara.reactive("Career Expert")
 user_prompt = solara.reactive("")
 chat_history = solara.reactive([])
-target_degree = solara.reactive("MBA")
+target_degree = solara.reactive("MS in SCM")
 
 @solara.component
 def Page():
-    with solara.Column(style={"padding": "20px", "max-width": "800px"}):
-        solara.Title("🚀 Career Accelerator: C-Suite Path")
+    with solara.Column(style={"padding": "30px", "max-width": "800px", "margin": "auto"}):
+        solara.Title("🚀 Personal Executive Council")
         
-        # Sidebar-style settings
-        with solara.Card("Executive Profile"):
-            solara.Select("Target Degree", value=target_degree, 
-                          values=["MS in SCM", "MBA", "MEM"])
-            solara.Info(f"Strategizing for {target_degree.value}...")
+        # Persona Selector - The "Command Center"
+        with solara.Row(justify="center", style={"margin-bottom": "20px"}):
+            solara.ToggleButtonsSingle(value=selected_persona, 
+                                       values=["Career Expert", "Communication Coach"])
+        
+        with solara.Card(style={"background-color": "#f0f4f8"}):
+            solara.Markdown(f"**Current Consultant:** {selected_persona.value}")
+            solara.Markdown(f"*Focusing on your {target_degree.value} track.*")
 
-        # Chat History Display
+        # Chat History
         for msg in chat_history.value:
-            with solara.Row():
+            with solara.Card(style={"margin": "10px 0px"}):
                 solara.Markdown(f"**{msg['role']}:** {msg['content']}")
 
-        # Chat Input
-        solara.InputText("Ask your C-Suite Council...", 
-                         value=user_prompt, 
-                         on_value=user_prompt.set)
+        # Input
+        solara.InputText(f"Ask the {selected_persona.value}...", 
+                         value=user_prompt, on_value=user_prompt.set)
         
-        def run_agent():
-            # Create Agent
-            expert = Agent(
-                role='Executive Consultant',
-                goal=f'Optimize a {target_degree.value} path.',
-                backstory='Specialist in MNC leadership pipelines.',
-                llm=gemini_llm
-            )
-            
-            task = Task(description=user_prompt.value, agent=expert, expected_output="A strategic plan.")
-            crew = Crew(agents=[expert], tasks=[task], memory=False)
-            
-            # Execute and update history
-            result = str(crew.kickoff())
-            new_history = chat_history.value + [
-                {"role": "User", "content": user_prompt.value},
-                {"role": "AI", "content": result}
-            ]
-            chat_history.set(new_history)
-            user_prompt.set("") # Clear input
+        def handle_click():
+            result = run_persona_agent(user_prompt.value, selected_persona.value, target_degree.value)
+            chat_history.set(chat_history.value + [
+                {"role": "Me", "content": user_prompt.value},
+                {"role": selected_persona.value, "content": result}
+            ])
+            user_prompt.set("")
 
-        solara.Button("Consult Council", on_click=run_agent, color="primary")
+        solara.Button(f"Consult {selected_persona.value}", on_click=handle_click, color="primary")
+
+app = Page()
