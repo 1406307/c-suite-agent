@@ -17,7 +17,7 @@ def ingest_cv(file_path):
 
     # 3. Setup Embeddings
     embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/text-embedding-005",  # 004 is shut down
+        model="models/gemini-embedding-001",  # 004 is shut down
         google_api_key=api_key,
         task_type="retrieval_document"  # use retrieval_document for ingestion
     )
