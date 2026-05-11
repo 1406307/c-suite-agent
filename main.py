@@ -8,7 +8,7 @@ def run_persona_agent(user_input, persona_type, target_degree):
     
     # 1. Setup the Embedding Brain (Turns text into searchable numbers)
     embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-004",
+        model="models/text-embedding-004",
         google_api_key=api_key
     )
 
