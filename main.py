@@ -1,7 +1,7 @@
 import os
 from crewai import Agent, Task, Crew, LLM
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 
 def run_persona_agent(user_input, persona_type, target_degree):
     api_key = os.getenv("GOOGLE_API_KEY")
@@ -9,9 +9,11 @@ def run_persona_agent(user_input, persona_type, target_degree):
     # 1. Setup the Embedding Brain (Turns text into searchable numbers)
     embeddings = GoogleGenerativeAIEmbeddings(
         model="models/text-embedding-004",
-        google_api_key=api_key
+        google_api_key=api_key,
+        task_type="retrieval_query",
+        client_options={"api_endpoint": "generativelanguage.googleapis.com"}
     )
-
+    gemini_llm = LLM(model="gemini/gemini-2.5-flash", api_key=api_key)
     # 2. Connect to ChromaDB
     # It looks for a folder named 'career_vault' in your project
     vector_db = Chroma(
