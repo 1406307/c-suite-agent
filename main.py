@@ -4,30 +4,37 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_chroma import Chroma
 
 def run_persona_agent(user_input, persona_type, target_degree):
-    api_key = os.getenv("GOOGLE_API_KEY")
+    # Keep the Google API key for your embeddings setup
+    google_api_key = os.getenv("GOOGLE_API_KEY")
     
-    # 1. Setup the Embedding Brain (Turns text into searchable numbers)
+    # Grab the Mistral API key from your environment variables
+    mistral_api_key = os.getenv("MISTRAL_API_KEY")
+    
+    # 1. Setup the Embedding Brain (Keeping this as Gemini text-embedding-005)
     embeddings = GoogleGenerativeAIEmbeddings(
-    model="text-embedding-005",  # fixed
-    google_api_key=api_key,
-    task_type="retrieval_query"
-)
-    gemini_llm = LLM(model="gemini/gemini-2.5-flash", api_key=api_key)
+        model="text-embedding-005",  
+        google_api_key=google_api_key,
+        task_type="retrieval_query"
+    )
+    
     # 2. Connect to ChromaDB
-    # It looks for a folder named 'career_vault' in your project
     vector_db = Chroma(
         persist_directory="./career_vault", 
         embedding_function=embeddings
     )
 
-    # 3. Retrieve Context (The Personalized Part)
-    # This searches your CV/Details for the 2 most relevant parts
+    # 3. Retrieve Context
     search_results = vector_db.similarity_search(user_input, k=2)
     context_from_memory = "\n".join([doc.page_content for doc in search_results])
 
-    # 4. Setup the Persona
-    gemini_llm = LLM(model="gemini/gemini-3-flash-preview", api_key=api_key)
+    # 4. Setup the Mistral LLM Configuration
+    # You can change "mistral-large-latest" to "open-mixtral-8x22b" or "codestral-latest" depending on your preference
+    mistral_llm = LLM(
+        model="mistral/mistral-large-latest", 
+        api_key=mistral_api_key
+    )
 
+    # 5. Assign the Mistral LLM to the Agent
     agent = Agent(
         role=f'Executive {persona_type}',
         goal=f'Provide a personalized strategy for a {target_degree} candidate.',
@@ -35,10 +42,10 @@ def run_persona_agent(user_input, persona_type, target_degree):
             "You have access to the user's private career vault (CV and history). "
             "Use this data to ensure every piece of advice is tailored to their specific background."
         ),
-        llm=gemini_llm
+        llm=mistral_llm  # Swapped to Mistral here
     )
 
-    # 5. The Personalized Task
+    # 6. The Personalized Task
     task = Task(
         description=(
             f"User Question: {user_input}\n\n"
