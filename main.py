@@ -4,9 +4,6 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_chroma import Chroma
 
 def run_persona_agent(user_input, persona_type, target_degree):
-    # Keep the Google API key for your embeddings setup
-    google_api_key = os.getenv("GOOGLE_API_KEY")
-    
     # Grab the Mistral API key from your environment variables
     mistral_api_key = os.getenv("MISTRAL_API_KEY")
     
